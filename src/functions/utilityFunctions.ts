@@ -59,6 +59,9 @@ export const apiDocs = onRequest((request, response) => {
       onAppointmentCreated: "Firestore trigger for new appointments",
       onAppointmentUpdated: "Firestore trigger for appointment updates",
       onOfferCreated: "Firestore trigger for new offers",
+      locationAutocomplete: "Callable function for location search with Azure Maps",
+      saveUserLocation: "Callable function for saving user's preferred location",
+      getNearbyProviders: "Callable function for finding nearby service providers",
     },
   });
 });

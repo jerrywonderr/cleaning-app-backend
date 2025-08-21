@@ -10,7 +10,7 @@ interface PaymentResult {
 }
 
 // Payment Processing Function (Callable)
-export const processPayment = onCall(async (request) => {
+export const processPayment = onCall(async request => {
   try {
     const { appointmentId, amount, paymentMethod } = request.data;
 
@@ -23,10 +23,7 @@ export const processPayment = onCall(async (request) => {
 
     // Here you would integrate with your payment processor
     // For now, we'll simulate a successful payment
-    const paymentResult = (await simulatePaymentProcessing(
-      amount,
-      paymentMethod
-    )) as PaymentResult;
+    const paymentResult = (await simulatePaymentProcessing(amount, paymentMethod)) as PaymentResult;
 
     if (paymentResult.success) {
       // Update appointment with payment status
@@ -42,8 +39,7 @@ export const processPayment = onCall(async (request) => {
     }
   } catch (error) {
     logger.error("Error in processPayment:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Payment processing failed: ${errorMessage}`);
   }
 });
@@ -55,19 +51,14 @@ export const processPayment = onCall(async (request) => {
  * @param {string} paymentMethod - Payment method used
  * @return {Promise<PaymentResult>} Payment processing result
  */
-async function simulatePaymentProcessing(
-  amount: number,
-  paymentMethod: string
-): Promise<PaymentResult> {
+async function simulatePaymentProcessing(amount: number, paymentMethod: string): Promise<PaymentResult> {
   // Simulate payment processing - replace with actual payment processor integration
   logger.info(`Processing ${amount} via ${paymentMethod}`);
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     setTimeout(() => {
       resolve({
         success: true,
-        paymentId: `pay_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}`,
+        paymentId: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       });
     }, 1000);
   });

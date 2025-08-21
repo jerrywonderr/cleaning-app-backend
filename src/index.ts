@@ -48,6 +48,13 @@ export {
 } from "./functions/paymentFunctions";
 
 export {
+  getNearbyProviders,
+  // Location Functions
+  locationAutocomplete,
+  saveUserLocation,
+} from "./functions/locationFunctions";
+
+export {
   apiDocs,
   // Utility Functions
   healthCheck,

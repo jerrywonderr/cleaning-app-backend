@@ -12,7 +12,7 @@ interface ProfileData {
 }
 
 // User Profile Update Function (Callable)
-export const updateUserProfile = onCall(async (request) => {
+export const updateUserProfile = onCall(async request => {
   try {
     const { userId, profileData } = request.data;
 
@@ -28,9 +28,7 @@ export const updateUserProfile = onCall(async (request) => {
     // Validate profile data
     const validationResult = await validateProfileData(profileData);
     if (!validationResult.isValid) {
-      const errorMsg = `Profile validation failed: ${validationResult.errors.join(
-        ", "
-      )}`;
+      const errorMsg = `Profile validation failed: ${validationResult.errors.join(", ")}`;
       throw new Error(errorMsg);
     }
 
@@ -46,8 +44,7 @@ export const updateUserProfile = onCall(async (request) => {
     return { success: true, message: "Profile updated successfully" };
   } catch (error) {
     logger.error("Error in updateUserProfile:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Profile update failed: ${errorMessage}`);
   }
 });

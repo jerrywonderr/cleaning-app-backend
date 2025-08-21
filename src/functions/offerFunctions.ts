@@ -2,11 +2,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 
-import {
-  isValidPrice,
-  isValidString,
-  validateRequiredFields,
-} from "../utils/validation";
+import { isValidPrice, isValidString, validateRequiredFields } from "../utils/validation";
 
 interface OfferData extends Record<string, unknown> {
   title: string;
@@ -16,36 +12,33 @@ interface OfferData extends Record<string, unknown> {
 }
 
 // Offer Creation Validation Function
-export const onOfferCreated = onDocumentCreated(
-  "offers/{offerId}",
-  async (event) => {
-    try {
-      const offerData = event.data?.data() as OfferData;
-      if (!offerData) return;
+export const onOfferCreated = onDocumentCreated("offers/{offerId}", async event => {
+  try {
+    const offerData = event.data?.data() as OfferData;
+    if (!offerData) return;
 
-      logger.info("New offer created:", offerData);
+    logger.info("New offer created:", offerData);
 
-      // Validate offer data
-      const validationResult = await validateOffer(offerData);
+    // Validate offer data
+    const validationResult = await validateOffer(offerData);
 
-      if (!validationResult.isValid) {
-        // Update offer with validation errors
-        await event.data?.ref.update({
-          validationErrors: validationResult.errors,
-          isValid: false,
-        });
-      } else {
-        // Mark offer as valid
-        await event.data?.ref.update({
-          isValid: true,
-          validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (error) {
-      logger.error("Error in onOfferCreated:", error);
+    if (!validationResult.isValid) {
+      // Update offer with validation errors
+      await event.data?.ref.update({
+        validationErrors: validationResult.errors,
+        isValid: false,
+      });
+    } else {
+      // Mark offer as valid
+      await event.data?.ref.update({
+        isValid: true,
+        validatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     }
+  } catch (error) {
+    logger.error("Error in onOfferCreated:", error);
   }
-);
+});
 
 // Helper Functions
 /**
@@ -57,12 +50,7 @@ async function validateOffer(offerData: OfferData) {
   const errors: string[] = [];
 
   // Validate required fields
-  const requiredErrors = validateRequiredFields(offerData, [
-    "title",
-    "description",
-    "price",
-    "serviceProviderId",
-  ]);
+  const requiredErrors = validateRequiredFields(offerData, ["title", "description", "price", "serviceProviderId"]);
   errors.push(...requiredErrors);
 
   // Validate specific field requirements

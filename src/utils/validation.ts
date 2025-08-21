@@ -55,10 +55,7 @@ export function isValidDate(date: string): boolean {
  * @param {string[]} requiredFields - Array of required field names
  * @return {string[]} Array of error messages for missing fields
  */
-export function validateRequiredFields(
-  data: Record<string, unknown>,
-  requiredFields: string[]
-): string[] {
+export function validateRequiredFields(data: Record<string, unknown>, requiredFields: string[]): string[] {
   const errors: string[] = [];
 
   for (const field of requiredFields) {

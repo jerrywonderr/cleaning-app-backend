@@ -1,8 +1,5 @@
 import * as logger from "firebase-functions/logger";
-import {
-  onDocumentCreated,
-  onDocumentUpdated,
-} from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 
 interface AppointmentData {
   id: string;
@@ -12,54 +9,46 @@ interface AppointmentData {
 }
 
 // Appointment Notification Function
-export const onAppointmentCreated = onDocumentCreated(
-  "appointments/{appointmentId}",
-  async (event) => {
-    try {
-      const appointmentData = event.data?.data() as AppointmentData;
-      if (!appointmentData) return;
+export const onAppointmentCreated = onDocumentCreated("appointments/{appointmentId}", async event => {
+  try {
+    const appointmentData = event.data?.data() as AppointmentData;
+    if (!appointmentData) return;
 
-      logger.info("New appointment created:", appointmentData);
+    logger.info("New appointment created:", appointmentData);
 
-      // Send notification to service provider
-      if (appointmentData.serviceProviderId) {
-        await sendNotificationToProvider(appointmentData);
-      }
-
-      // Send confirmation to customer
-      if (appointmentData.customerId) {
-        await sendConfirmationToCustomer(appointmentData);
-      }
-    } catch (error) {
-      logger.error("Error in onAppointmentCreated:", error);
+    // Send notification to service provider
+    if (appointmentData.serviceProviderId) {
+      await sendNotificationToProvider(appointmentData);
     }
+
+    // Send confirmation to customer
+    if (appointmentData.customerId) {
+      await sendConfirmationToCustomer(appointmentData);
+    }
+  } catch (error) {
+    logger.error("Error in onAppointmentCreated:", error);
   }
-);
+});
 
 // Appointment Status Update Function
-export const onAppointmentUpdated = onDocumentUpdated(
-  "appointments/{appointmentId}",
-  async (event) => {
-    try {
-      const beforeData = event.data?.before.data() as AppointmentData;
-      const afterData = event.data?.after.data() as AppointmentData;
+export const onAppointmentUpdated = onDocumentUpdated("appointments/{appointmentId}", async event => {
+  try {
+    const beforeData = event.data?.before.data() as AppointmentData;
+    const afterData = event.data?.after.data() as AppointmentData;
 
-      if (!beforeData || !afterData) return;
+    if (!beforeData || !afterData) return;
 
-      // Check if status changed
-      if (beforeData.status !== afterData.status) {
-        logger.info(
-          `Appointment status changed from ${beforeData.status} to ${afterData.status}`
-        );
+    // Check if status changed
+    if (beforeData.status !== afterData.status) {
+      logger.info(`Appointment status changed from ${beforeData.status} to ${afterData.status}`);
 
-        // Send status update notifications
-        await sendStatusUpdateNotification(afterData);
-      }
-    } catch (error) {
-      logger.error("Error in onAppointmentUpdated:", error);
+      // Send status update notifications
+      await sendStatusUpdateNotification(afterData);
     }
+  } catch (error) {
+    logger.error("Error in onAppointmentUpdated:", error);
   }
-);
+});
 
 // Helper Functions
 /**
@@ -67,10 +56,7 @@ export const onAppointmentUpdated = onDocumentUpdated(
  * @param {AppointmentData} appointmentData - The appointment data
  */
 async function sendNotificationToProvider(appointmentData: AppointmentData) {
-  logger.info(
-    "Sending notification to provider:",
-    appointmentData.serviceProviderId
-  );
+  logger.info("Sending notification to provider:", appointmentData.serviceProviderId);
 }
 
 /**
@@ -86,8 +72,5 @@ async function sendConfirmationToCustomer(appointmentData: AppointmentData) {
  * @param {AppointmentData} appointmentData - The appointment data
  */
 async function sendStatusUpdateNotification(appointmentData: AppointmentData) {
-  logger.info(
-    "Sending status update notification for appointment:",
-    appointmentData.id
-  );
+  logger.info("Sending status update notification for appointment:", appointmentData.id);
 }

@@ -13,6 +13,7 @@ module.exports = {
     "plugin:import/typescript",
     "google",
     "plugin:@typescript-eslint/recommended",
+    "prettier", // Disables ESLint rules that conflict with Prettier
   ],
   parser: "@typescript-eslint/parser",
   parserOptions: {
@@ -23,7 +24,11 @@ module.exports = {
     "/lib/**/*", // Ignore built files.
     "/generated/**/*", // Ignore generated files.
   ],
-  plugins: ["@typescript-eslint", "import"],
+  plugins: [
+    "@typescript-eslint",
+    "import",
+    "prettier", // Enables Prettier as an ESLint rule
+  ],
   rules: {
     "quotes": ["error", "double"],
     "import/no-unresolved": 0,
@@ -31,5 +36,6 @@ module.exports = {
     "max-len": ["error", { code: 120 }],
     "object-curly-spacing": ["error", "always"],
     "array-bracket-spacing": ["error", "never"],
+    "prettier/prettier": "error", // Reports Prettier errors as ESLint errors
   },
 };
