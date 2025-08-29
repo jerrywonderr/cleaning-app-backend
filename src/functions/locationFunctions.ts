@@ -77,9 +77,9 @@ interface LocationAutocompleteResult {
  * @param {LocationSearchRequest} request - The search request parameters
  * @return {Promise<LocationAutocompleteResult[]>} Array of location suggestions
  */
-export const locationAutocomplete = onCall(async request => {
+export const locationAutocomplete = onCall({ secrets: [azureMapsKey] }, async request => {
   try {
-    const { query, countrySet, lat, lon, radius = 50000, limit = 10 }: LocationSearchRequest = request.data;
+    const { query, countrySet, lat, lon, radius = 50000, limit = 15 }: LocationSearchRequest = request.data;
 
     // Validate request
     if (!query || query.trim().length < 2) {
@@ -91,7 +91,7 @@ export const locationAutocomplete = onCall(async request => {
     // Get Azure Maps API key from the new params system
     const mapsKey = azureMapsKey.value();
     if (!mapsKey) {
-      throw new Error("Azure Maps API key not configured. Please set AZURE_MAPS_KEY parameter.");
+      throw new Error("Azure Maps API key not configured. Please set AZURE_MAPS_KEY secret.");
     }
 
     // Build Azure Maps API URL
@@ -152,6 +152,84 @@ export const locationAutocomplete = onCall(async request => {
     logger.error("Error in locationAutocomplete:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Location autocomplete failed: ${errorMessage}`);
+  }
+});
+
+/**
+ * Get location details from coordinates (reverse geocoding)
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @return {Promise<LocationAutocompleteResult>} Location details
+ */
+export const getLocationFromCoordinates = onCall({ secrets: [azureMapsKey] }, async request => {
+  try {
+    const { lat, lon } = request.data;
+
+    // Validate coordinates
+    if (!lat || !lon || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      throw new Error("Invalid coordinates provided");
+    }
+
+    logger.info(`Getting location details for coordinates: ${lat}, ${lon}`);
+
+    // Get Azure Maps API key from the new params system
+    const mapsKey = azureMapsKey.value();
+    if (!mapsKey) {
+      throw new Error("Azure Maps API key not configured. Please set AZURE_MAPS_KEY secret.");
+    }
+
+    // Build Azure Maps reverse geocoding API URL
+    const baseUrl = "https://atlas.microsoft.com/search/address/reverse/json";
+    const params = new URLSearchParams({
+      "api-version": "1.0",
+      query: `${lat},${lon}`,
+      "subscription-key": mapsKey,
+    });
+
+    const url = `${baseUrl}?${params.toString()}`;
+
+    // Make request to Azure Maps API
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Azure Maps API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: AzureMapsResponse = await response.json();
+
+    if (!data.results || data.results.length === 0) {
+      throw new Error("No location found for the provided coordinates");
+    }
+
+    // Get the first (most relevant) result
+    const result = data.results[0];
+
+    // Transform Azure Maps response to our format
+    const locationDetails: LocationAutocompleteResult = {
+      id: result.id,
+      displayName: result.address.freeformAddress,
+      type: result.type,
+      score: result.score,
+      address: {
+        street: `${result.address.streetNumber || ""} ${result.address.streetName || ""}`.trim(),
+        city: result.address.municipality || result.address.countrySecondarySubdivision || "",
+        state: result.address.countrySubdivision || "",
+        country: result.address.country || "",
+        postalCode: result.address.postalCode || "",
+        fullAddress: result.address.freeformAddress,
+      },
+      coordinates: {
+        latitude: result.position.lat,
+        longitude: result.position.lon,
+      },
+    };
+
+    logger.info(`Found location: ${locationDetails.displayName}`);
+
+    return locationDetails;
+  } catch (error) {
+    logger.error("Error in getLocationFromCoordinates:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to get location from coordinates: ${errorMessage}`);
   }
 });
 
