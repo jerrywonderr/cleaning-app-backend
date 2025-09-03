@@ -1,0 +1,96 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the profile
+    function isProfileOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user is the offer creator
+    function isOfferCreator(offerId) {
+      return isAuthenticated() && 
+        (resource == null || resource.metadata.creatorId == request.auth.uid) &&
+        request.resource.metadata.creatorId == request.auth.uid;
+    }
+
+    // ========================================
+    // USER PROFILE IMAGES AND DOCUMENTS
+    // ========================================
+    // Path: users/{userId}/profile/{filename}
+    // Path: users/{userId}/documents/{type}/{filename}
+    match /users/{userId}/{allPaths=**} {
+      // All authenticated users can read user profiles
+      // This allows users to see each other's profile pictures
+      allow read: if isAuthenticated();
+      
+      // Only the profile owner can write (upload, update, delete)
+      // This prevents users from modifying other people's profiles
+      allow write: if isProfileOwner(userId);
+    }
+    
+    // ========================================
+    // OFFER IMAGES
+    // ========================================
+    // Path: offers/{offerId}/main/{filename}
+    // Path: offers/{offerId}/gallery/{filename}
+    // Path: offers/{offerId}/attachments/{filename}
+    match /offers/{offerId}/{allPaths=**} {
+      // All authenticated users can read offer images
+      // This allows customers to see service provider offers
+      allow read: if isAuthenticated();
+      
+      // Only the offer creator can write (upload, update, delete)
+      // This prevents other service providers from modifying offers
+      allow write: if isOfferCreator(offerId);
+    }
+    
+    // ========================================
+    // APPOINTMENT IMAGES
+    // ========================================
+    // Path: appointments/{appointmentId}/before-photos/{filename}
+    // Path: appointments/{appointmentId}/after-photos/{filename}
+    // Path: appointments/{appointmentId}/receipts/{filename}
+    match /appointments/{appointmentId}/{allPaths=**} {
+      // Only authenticated users can read/write their own appointments
+      // Both the customer and service provider can access appointment files
+      allow read, write: if isAuthenticated() && 
+        (resource.metadata.userId == request.auth.uid || 
+         resource.metadata.providerId == request.auth.uid);
+    }
+    
+    // ========================================
+    // REVIEW IMAGES
+    // ========================================
+    // Path: reviews/{reviewId}/photos/{filename}
+    match /reviews/{reviewId}/{allPaths=**} {
+      // All authenticated users can read review images
+      // This allows users to see review photos
+      allow read: if isAuthenticated();
+      
+      // Only the review author can write
+      // This prevents users from modifying other people's reviews
+      allow write: if isAuthenticated() && 
+        resource.metadata.authorId == request.auth.uid;
+    }
+    
+    // ========================================
+    // TEMPORARY FILES
+    // ========================================
+    // Path: temp/{filename}
+    // Used for files being uploaded before they're assigned to a resource
+    match /temp/{allPaths=**} {
+      // Only authenticated users can access temp files
+      // These are cleaned up after successful upload
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

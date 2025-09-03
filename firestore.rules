@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      // Users can read/write their own profile
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Service Providers collection
+    match /serviceProviders/{userId} {
+      // All authenticated users can read service provider profiles (for discovery and booking)
+      allow read: if request.auth != null;
+
+      // Only the owner can write/edit their own service provider profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Bank Accounts collection
+    match /bankAccounts/{userId} {
+      // Users can read/write their own bank account
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Payout Accounts collection - now supports multiple accounts per user
+    match /payoutAccounts/{payoutAccountId} {
+      // Users can read/write their own payout accounts
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Users can create new payout accounts
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+    }
+
+    // Transaction Pins collection
+    match /transactionPins/{userId} {
+      // Users can read/write their own transaction pin
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Offers collection
+    match /offers/{offerId} {
+      // All authenticated users can read offers
+      allow read: if request.auth != null;
+
+      // Only the service provider can create/edit/delete their offers
+      allow create, update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.serviceProviderId;
+    }
+
+    // Appointments collection
+    match /appointments/{appointmentId} {
+      // Users can read appointments they're involved in
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.customerId || 
+         request.auth.uid == resource.data.serviceProviderId);
+
+      // Customers can create appointments
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.customerId;
+
+      // Both parties can update appointments they're involved in
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.customerId || 
+         request.auth.uid == resource.data.serviceProviderId);
+    }
+  }
+}
