@@ -1,7 +1,12 @@
 import * as logger from "firebase-functions/logger";
 import { defineSecret } from "firebase-functions/params";
 import { onCall } from "firebase-functions/v2/https";
-import { AzureMapsResponse, LocationAutocompleteResult, LocationSearchRequest } from "../types";
+import {
+  AzureMapsResponse,
+  AzureMapsReverseGeocodingResponse,
+  LocationAutocompleteResult,
+  LocationSearchRequest,
+} from "../types";
 
 // Define the Azure Maps API key as a secret parameter
 const azureMapsKey = defineSecret("AZURE_MAPS_KEY");
@@ -69,6 +74,7 @@ export const locationAutocomplete = onCall({ secrets: [azureMapsKey] }, async re
         city: result.address.municipality || result.address.countrySecondarySubdivision || "",
         state: result.address.countrySubdivision || "",
         country: result.address.country || "",
+        countryCode: result.address.countryCode || "",
         postalCode: result.address.postalCode || "",
         fullAddress: result.address.freeformAddress,
       },
@@ -116,8 +122,8 @@ export const getLocationFromCoordinates = onCall({ secrets: [azureMapsKey] }, as
     const baseUrl = "https://atlas.microsoft.com/search/address/reverse/json";
     const params = new URLSearchParams({
       "api-version": "1.0",
-      query: `${lat},${lon}`,
       "subscription-key": mapsKey,
+      query: `${lat},${lon}`,
     });
 
     const url = `${baseUrl}?${params.toString()}`;
@@ -128,32 +134,37 @@ export const getLocationFromCoordinates = onCall({ secrets: [azureMapsKey] }, as
       throw new Error(`Azure Maps API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: AzureMapsResponse = await response.json();
+    const data: AzureMapsReverseGeocodingResponse = await response.json();
 
-    if (!data.results || data.results.length === 0) {
+    logger.info("Azure Maps API response:", JSON.stringify(data, null, 2));
+
+    // Azure Maps reverse geocoding returns 'addresses' array, not 'results'
+    if (!data.addresses || data.addresses.length === 0) {
+      logger.warn(`No addresses from Azure Maps for coordinates: ${lat}, ${lon}`);
       throw new Error("No location found for the provided coordinates");
     }
 
-    // Get the first (most relevant) result
-    const result = data.results[0];
+    // Get the first (most relevant) address
+    const addressData = data.addresses[0];
 
     // Transform Azure Maps response to our format
     const locationDetails: LocationAutocompleteResult = {
-      id: result.id,
-      displayName: result.address.freeformAddress,
-      type: result.type,
-      score: result.score,
+      id: addressData.id,
+      displayName: addressData.address.freeformAddress,
+      type: "Point Address", // Reverse geocoding always returns point addresses
+      score: 1.0, // Reverse geocoding doesn't provide score
       address: {
-        street: `${result.address.streetNumber || ""} ${result.address.streetName || ""}`.trim(),
-        city: result.address.municipality || result.address.countrySecondarySubdivision || "",
-        state: result.address.countrySubdivision || "",
-        country: result.address.country || "",
-        postalCode: result.address.postalCode || "",
-        fullAddress: result.address.freeformAddress,
+        street: addressData.address.street || addressData.address.streetName || "",
+        city: addressData.address.municipality || "",
+        state: addressData.address.countrySubdivision || "",
+        country: addressData.address.country || "",
+        countryCode: addressData.address.countryCode || "",
+        postalCode: addressData.address.postalCode || "",
+        fullAddress: addressData.address.freeformAddress,
       },
       coordinates: {
-        latitude: result.position.lat,
-        longitude: result.position.lon,
+        latitude: parseFloat(addressData.position.split(",")[0]),
+        longitude: parseFloat(addressData.position.split(",")[1]),
       },
     };
 

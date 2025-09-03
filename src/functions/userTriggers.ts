@@ -59,7 +59,13 @@ export const onUserCreated = onDocumentCreated("users/{userId}", async event => 
       },
       extraOptions: {},
       workingPreferences: {
-        serviceArea: undefined,
+        serviceArea: {
+          fullAddress: "",
+          latitude: 0,
+          longitude: 0,
+          country: "",
+          radius: 0,
+        },
         workingSchedule: {
           monday: { isActive: false, startTime: null, endTime: null },
           tuesday: { isActive: false, startTime: null, endTime: null },

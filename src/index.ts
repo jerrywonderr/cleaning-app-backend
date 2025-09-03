@@ -48,7 +48,7 @@ export {
 } from "./functions/paymentFunctions";
 
 export {
-  // getNearbyProviders,
+  getLocationFromCoordinates,
   // Location Functions
   locationAutocomplete,
 } from "./functions/locationFunctions";

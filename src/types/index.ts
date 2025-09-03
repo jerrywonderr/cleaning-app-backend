@@ -107,6 +107,7 @@ export interface LocationAutocompleteResult {
     city: string;
     state: string;
     country: string;
+    countryCode: string;
     postalCode: string;
     fullAddress: string;
   };
@@ -149,6 +150,38 @@ export interface AzureMapsResponse {
         lat: number;
         lon: number;
       };
+    };
+  }>;
+}
+
+export interface AzureMapsReverseGeocodingResponse {
+  summary: {
+    queryTime: number;
+    numResults: number;
+  };
+  addresses: Array<{
+    id: string;
+    position: string; // "lat,lon" format
+    address: {
+      routeNumbers: string[];
+      street: string;
+      streetName: string;
+      countryCode: string;
+      countrySubdivision: string;
+      municipality: string;
+      municipalitySubdivision: string;
+      country: string;
+      countryCodeISO3: string;
+      freeformAddress: string;
+      boundingBox: {
+        northEast: string; // "lat,lon" format
+        southWest: string; // "lat,lon" format
+        entity: string;
+      };
+      countrySubdivisionName: string;
+      countrySubdivisionCode: string;
+      localName: string;
+      postalCode?: string;
     };
   }>;
 }
