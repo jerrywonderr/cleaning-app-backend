@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { OfferCategory, UserData, WorkingPreferences } from "../types";
+import { generateGeohash } from "../utils/geohash";
 
 const db = admin.firestore();
 
@@ -54,10 +55,14 @@ export const onUserCreated = onDocumentCreated("users/{userId}", async event => 
       workingPreferences: {
         serviceArea: {
           fullAddress: "",
-          latitude: 0,
-          longitude: 0,
+          coordinates: {
+            latitude: 0,
+            longitude: 0,
+          },
           country: "",
+          countryCode: "",
           radius: 0,
+          geohash: generateGeohash(0, 0, 7), // Default geohash for 0,0 coordinates
         },
         workingSchedule: {
           monday: { isActive: false, startTime: null, endTime: null },

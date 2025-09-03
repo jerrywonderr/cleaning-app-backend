@@ -16,10 +16,14 @@ export interface SearchLocation {
 
 export interface ServiceAreaData {
   fullAddress: string;
-  latitude: number;
-  longitude: number;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
   country: string;
+  countryCode: string;
   radius: number; // in meters
+  geohash: string; // for efficient spatial queries
 }
 
 // Working schedule types

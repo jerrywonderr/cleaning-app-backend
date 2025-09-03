@@ -8,27 +8,9 @@ import {
   UpdateServiceProviderRequest,
   WorkingPreferences,
 } from "../types";
+import { calculateDistance, generateGeohash, getGeohashPrefixesForSearch } from "../utils/geohash";
 
 const db = admin.firestore();
-
-/**
- * Calculate distance between two coordinates using Haversine formula
- * @param {number} lat1 - First latitude
- * @param {number} lon1 - First longitude
- * @param {number} lat2 - Second latitude
- * @param {number} lon2 - Second longitude
- * @return {number} Distance in kilometers
- */
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 /**
  * Update service provider settings and preferences
@@ -47,6 +29,22 @@ export const updateServiceProviderSettings = onCall(async (request): Promise<{ s
     logger.info(`Updating service provider profile for user: ${userId}`);
 
     // Update the serviceProviders collection (single source of truth)
+    let workingPreferences = providerData.workingPreferences;
+
+    // Generate geohash if service area is provided
+    if (workingPreferences?.serviceArea) {
+      const serviceArea = workingPreferences.serviceArea;
+      const geohash = generateGeohash(serviceArea.coordinates.latitude, serviceArea.coordinates.longitude, 7);
+
+      workingPreferences = {
+        ...workingPreferences,
+        serviceArea: {
+          ...serviceArea,
+          geohash,
+        },
+      };
+    }
+
     const updateData: {
       services: Record<OfferCategory, boolean>;
       extraOptions: Record<string, boolean>;
@@ -56,7 +54,7 @@ export const updateServiceProviderSettings = onCall(async (request): Promise<{ s
     } = {
       services: providerData.services,
       extraOptions: providerData.extraOptions,
-      workingPreferences: providerData.workingPreferences,
+      workingPreferences,
       isActive: Object.values(providerData.services).some(service => service), // Active if any service is enabled
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -89,52 +87,61 @@ export const searchServiceProviders = onCall(async (request): Promise<ServicePro
 
     logger.info(`Searching for ${serviceType} providers near ${location.latitude}, ${location.longitude}`);
 
-    // Get service providers from Firestore
-    const providersRef = db.collection("serviceProviders");
-
-    // Query for active providers offering the specific service
-    const snapshot = await providersRef
-      .where("isActive", "==", true)
-      .where(`services.${serviceType}`, "==", true)
-      .get();
+    // Get geohash prefixes for efficient spatial querying
+    // We'll use a reasonable search radius (e.g., 50km) to get geohash prefixes
+    const searchRadius = 50000; // 50km in meters
+    const geohashPrefixes = getGeohashPrefixesForSearch(location.latitude, location.longitude, searchRadius);
 
     const providers: ServiceProviderResult[] = [];
 
-    for (const doc of snapshot.docs) {
-      const provider = doc.data();
+    // Query providers using geohash prefixes for efficient spatial filtering
+    for (const geohashPrefix of geohashPrefixes) {
+      const providersRef = db.collection("serviceProviders");
 
-      // Check if location is within working area using serviceArea from workingPreferences
-      if (provider.workingPreferences?.serviceArea) {
-        const serviceArea = provider.workingPreferences.serviceArea;
-        const distance = calculateDistance(
-          location.latitude,
-          location.longitude,
-          serviceArea.latitude,
-          serviceArea.longitude
-        );
+      // Query for active providers offering the specific service with matching geohash prefix
+      const snapshot = await providersRef
+        .where("isActive", "==", true)
+        .where(`services.${serviceType}`, "==", true)
+        .where("workingPreferences.serviceArea.geohash", ">=", geohashPrefix)
+        .where("workingPreferences.serviceArea.geohash", "<", geohashPrefix + "~") // ~ is the last character in base32
+        .get();
 
-        // Check if the search location is within the provider's working area
-        if (distance <= serviceArea.radius / 1000) {
-          // Fetch user profile data from users collection
-          const userDoc = await db.collection("users").doc(provider.userId).get();
-          const userData = userDoc.data();
+      for (const doc of snapshot.docs) {
+        const provider = doc.data();
 
-          providers.push({
-            id: doc.id,
-            userId: provider.userId,
-            profile: {
-              firstName: userData?.firstName || "",
-              lastName: userData?.lastName || "",
-              profileImage: userData?.profileImage,
-              phone: userData?.phone || "",
-            },
-            services: provider.services,
-            extraOptions: provider.extraOptions,
-            workingPreferences: provider.workingPreferences,
-            rating: provider.rating,
-            totalJobs: provider.totalJobs,
-            distance: Math.round(distance * 1000), // Distance in meters
-          });
+        // Double-check location is within working area using precise distance calculation
+        if (provider.workingPreferences?.serviceArea) {
+          const serviceArea = provider.workingPreferences.serviceArea;
+          const distance = calculateDistance(
+            location.latitude,
+            location.longitude,
+            serviceArea.coordinates.latitude,
+            serviceArea.coordinates.longitude
+          );
+
+          // Check if the search location is within the provider's working area
+          if (distance <= serviceArea.radius / 1000) {
+            // Fetch user profile data from users collection
+            const userDoc = await db.collection("users").doc(provider.userId).get();
+            const userData = userDoc.data();
+
+            providers.push({
+              id: doc.id,
+              userId: provider.userId,
+              profile: {
+                firstName: userData?.firstName || "",
+                lastName: userData?.lastName || "",
+                profileImage: userData?.profileImage,
+                phone: userData?.phone || "",
+              },
+              services: provider.services,
+              extraOptions: provider.extraOptions,
+              workingPreferences: provider.workingPreferences,
+              rating: provider.rating,
+              totalJobs: provider.totalJobs,
+              distance: Math.round(distance * 1000), // Distance in meters
+            });
+          }
         }
       }
     }
