@@ -15,13 +15,6 @@ interface ServiceProviderProfile {
   isActive: boolean;
   rating: number;
   totalJobs: number;
-  location?: {
-    coordinates: {
-      latitude: number;
-      longitude: number;
-    };
-    radius: number;
-  };
   createdAt: admin.firestore.FieldValue | admin.firestore.Timestamp;
   updatedAt: admin.firestore.FieldValue | admin.firestore.Timestamp;
 }
@@ -79,13 +72,6 @@ export const onUserCreated = onDocumentCreated("users/{userId}", async event => 
       isActive: false, // Default to inactive until they configure services
       rating: 0,
       totalJobs: 0,
-      location: {
-        coordinates: {
-          latitude: 0,
-          longitude: 0,
-        },
-        radius: 0,
-      },
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };

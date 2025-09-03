@@ -53,10 +53,6 @@ export const updateServiceProviderSettings = onCall(async (request): Promise<{ s
       workingPreferences?: WorkingPreferences;
       isActive: boolean;
       updatedAt: admin.firestore.FieldValue;
-      location?: {
-        coordinates: { latitude: number; longitude: number };
-        radius: number;
-      };
     } = {
       services: providerData.services,
       extraOptions: providerData.extraOptions,
@@ -64,19 +60,6 @@ export const updateServiceProviderSettings = onCall(async (request): Promise<{ s
       isActive: Object.values(providerData.services).some(service => service), // Active if any service is enabled
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-
-    // Add location data if service area is provided
-    if (providerData.workingPreferences?.serviceArea) {
-      const serviceArea = providerData.workingPreferences.serviceArea;
-
-      updateData.location = {
-        coordinates: {
-          latitude: serviceArea.latitude,
-          longitude: serviceArea.longitude,
-        },
-        radius: serviceArea.radius,
-      };
-    }
 
     await db.collection("serviceProviders").doc(userId).update(updateData);
 
@@ -120,17 +103,18 @@ export const searchServiceProviders = onCall(async (request): Promise<ServicePro
     for (const doc of snapshot.docs) {
       const provider = doc.data();
 
-      // Check if location is within working area
-      if (provider.location) {
+      // Check if location is within working area using serviceArea from workingPreferences
+      if (provider.workingPreferences?.serviceArea) {
+        const serviceArea = provider.workingPreferences.serviceArea;
         const distance = calculateDistance(
           location.latitude,
           location.longitude,
-          provider.location.coordinates.latitude,
-          provider.location.coordinates.longitude
+          serviceArea.latitude,
+          serviceArea.longitude
         );
 
         // Check if the search location is within the provider's working area
-        if (distance <= provider.location.radius / 1000) {
+        if (distance <= serviceArea.radius / 1000) {
           // Fetch user profile data from users collection
           const userDoc = await db.collection("users").doc(provider.userId).get();
           const userData = userDoc.data();
