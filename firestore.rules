@@ -5,6 +5,10 @@ service cloud.firestore {
     match /users/{userId} {
       // Users can read/write their own profile
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow reading user profiles for service request purposes (to display provider/customer names)
+      // This is needed for the service request system to show names in the UI
+      allow read: if request.auth != null;
     }
 
     // Service Providers collection
@@ -39,31 +43,43 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Offers collection
-    match /offers/{offerId} {
-      // All authenticated users can read offers
-      allow read: if request.auth != null;
-
-      // Only the service provider can create/edit/delete their offers
-      allow create, update, delete: if request.auth != null && 
-        request.auth.uid == resource.data.serviceProviderId;
-    }
-
-    // Appointments collection
-    match /appointments/{appointmentId} {
-      // Users can read appointments they're involved in
+    // Service Requests collection
+    match /serviceRequests/{requestId} {
+      // Users can read service requests they're involved in
       allow read: if request.auth != null && 
         (request.auth.uid == resource.data.customerId || 
-         request.auth.uid == resource.data.serviceProviderId);
+         request.auth.uid == resource.data.providerId);
 
-      // Customers can create appointments
+      // Customers can create service requests
       allow create: if request.auth != null && 
         request.auth.uid == request.resource.data.customerId;
 
-      // Both parties can update appointments they're involved in
+      // Both parties can update service requests they're involved in
       allow update: if request.auth != null && 
         (request.auth.uid == resource.data.customerId || 
-         request.auth.uid == resource.data.serviceProviderId);
+         request.auth.uid == resource.data.providerId);
+
+      // Only the customer can delete their own service requests
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.customerId;
+    }
+
+    // Ratings collection
+    match /ratings/{ratingId} {
+      // All authenticated users can read ratings (for provider profiles)
+      allow read: if request.auth != null;
+
+      // Customers can create ratings for services they've completed
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.customerId;
+
+      // Customers can update their own ratings (for editing reviews)
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.customerId;
+
+      // Customers can delete their own ratings
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.customerId;
     }
   }
 }
